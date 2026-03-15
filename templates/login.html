@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Account Access</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <main class="auth-shell">
+        <section class="auth-card">
+            <p class="hero-kicker">Next Track Recommender</p>
+            {% if mode == 'signup' %}
+            <h1>Create Account</h1>
+            <p class="subtext">Sign up to personalize your music recommendations.</p>
+            {% else %}
+            <h1>Login</h1>
+            <p class="subtext">Welcome back. Continue your recommendation session.</p>
+            {% endif %}
+
+            {% if error %}
+            <p class="auth-error">{{ error }}</p>
+            {% endif %}
+
+            {% if mode == 'signup' %}
+            <form class="recommend-form" method="post" action="{{ url_for('signup') }}">
+                <label for="username">User Name</label>
+                <input id="username" name="username" type="text" autocomplete="username" required />
+
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="new-password" required />
+
+                <label for="confirm_password">Confirm Password</label>
+                <input
+                    id="confirm_password"
+                    name="confirm_password"
+                    type="password"
+                    autocomplete="new-password"
+                    required
+                />
+
+                <p class="auth-note">Password must be at least 8 characters and include at least 1 number.</p>
+                <button type="submit">Create Account</button>
+            </form>
+            <p class="auth-link">Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+            {% else %}
+            <form class="recommend-form" method="post" action="{{ url_for('login') }}">
+                <label for="username">Name</label>
+                <input id="username" name="username" type="text" autocomplete="username" required />
+
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+                <button type="submit">Login</button>
+            </form>
+            <p class="auth-link">No account yet? <a href="{{ url_for('signup') }}">Create one</a></p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

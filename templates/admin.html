@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Tools | Next Track Recommender</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <div class="layout">
+        <header class="topbar">
+            <h1>Next Track Recommender</h1>
+            <div class="topbar-user">
+                <span class="topbar-name">Hi, {{ username }}</span>
+                <form method="post" action="{{ url_for('logout') }}">
+                    <button type="submit" class="queue-btn">Logout</button>
+                </form>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <nav>
+                <a href="{{ url_for('index') }}" class="nav-item {% if active_page == 'home' %}active{% endif %}">Home</a>
+                <a href="{{ url_for('library') }}" class="nav-item {% if active_page == 'library' %}active{% endif %}">Library</a>
+                <a href="{{ url_for('history') }}" class="nav-item {% if active_page == 'history' %}active{% endif %}">History</a>
+                <a href="{{ url_for('admin_tools') }}" class="nav-item {% if active_page == 'admin' %}active{% endif %}">Admin</a>
+            </nav>
+
+            <section class="side-card">
+                <p class="side-kicker">Admin</p>
+                <p class="queue-empty">Use these tools to inspect dataset state and trigger maintenance actions.</p>
+            </section>
+        </aside>
+
+        <main class="main-panel single-column">
+            <section class="hero-card">
+                <div class="hero-cover cover-frame cover-fallback">AT</div>
+                <div class="hero-copy">
+                    <p class="hero-kicker">Data Operations</p>
+                    <h2 class="hero-title">Admin / Data Tools</h2>
+                    <p class="hero-artist">Monitor dataset growth and refresh recommendation infrastructure.</p>
+                    <div class="hero-chips">
+                        <span class="hero-chip">Live Stats</span>
+                        <span class="hero-chip ghost">Maintenance Actions</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="insights-row">
+                <article class="insights-card">
+                    <div class="insights-head">
+                        <h2>Dataset Stats</h2>
+                        <button id="refresh-stats" class="queue-btn" type="button">Refresh</button>
+                    </div>
+                    <div class="insights-grid">
+                        <p class="insight-item"><span>Rows</span><strong id="stat-rows">-</strong></p>
+                        <p class="insight-item"><span>Genres</span><strong id="stat-genres">-</strong></p>
+                        <p class="insight-item"><span>Artists</span><strong id="stat-artists">-</strong></p>
+                        <p class="insight-item"><span>Users</span><strong id="stat-users">-</strong></p>
+                        <p class="insight-item"><span>File Size</span><strong id="stat-size">-</strong></p>
+                        <p class="insight-item"><span>Last Updated</span><strong id="stat-updated">-</strong></p>
+                    </div>
+                </article>
+
+                <article class="insights-card">
+                    <div class="insights-head">
+                        <h2>Maintenance</h2>
+                        <span class="badge">Actions</span>
+                    </div>
+                    <div class="side-actions">
+                        <button id="reload-model" class="side-action" type="button">Reload Recommendation Model</button>
+                    </div>
+
+                    <form id="expand-form" class="recommend-form admin-form" novalidate>
+                        <label for="target-size">Expand Dataset (append count)</label>
+                        <input id="target-size" type="number" min="1" value="1000" required />
+                        <button type="submit">Expand Dataset from Last.fm</button>
+                    </form>
+
+                    <p id="admin-status" class="status"></p>
+                    <p class="auth-note">Note: expansion uses server env var <code>LASTFM_API_KEY</code>.</p>
+                </article>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const statRows = document.getElementById('stat-rows');
+        const statGenres = document.getElementById('stat-genres');
+        const statArtists = document.getElementById('stat-artists');
+        const statUsers = document.getElementById('stat-users');
+        const statSize = document.getElementById('stat-size');
+        const statUpdated = document.getElementById('stat-updated');
+        const statusEl = document.getElementById('admin-status');
+        const refreshBtn = document.getElementById('refresh-stats');
+        const reloadBtn = document.getElementById('reload-model');
+        const expandForm = document.getElementById('expand-form');
+        const targetSizeInput = document.getElementById('target-size');
+
+        function formatTime(unixSeconds) {
+            const value = Number(unixSeconds);
+            if (!Number.isFinite(value) || value <= 0) {
+                return '-';
+            }
+            const dt = new Date(value * 1000);
+            return dt.toLocaleString();
+        }
+
+        async function fetchStats() {
+            const response = await fetch('/api/admin/stats');
+            const payload = await response.json();
+            if (!response.ok) {
+                throw new Error(payload.error || 'Failed to load stats.');
+            }
+            return payload;
+        }
+
+        function renderStats(stats) {
+            statRows.textContent = String(stats.row_count ?? '-');
+            statGenres.textContent = String(stats.unique_genres ?? '-');
+            statArtists.textContent = String(stats.unique_artists ?? '-');
+            statUsers.textContent = String(stats.user_count ?? '-');
+            statSize.textContent = `${stats.file_size_mb ?? '-'} MB`;
+            statUpdated.textContent = formatTime(stats.last_updated);
+        }
+
+        async function refreshStats() {
+            statusEl.textContent = 'Loading stats...';
+            try {
+                const stats = await fetchStats();
+                renderStats(stats);
+                statusEl.textContent = 'Stats refreshed.';
+            } catch (error) {
+                statusEl.textContent = error.message;
+            }
+        }
+
+        async function reloadModel() {
+            statusEl.textContent = 'Reloading model...';
+            try {
+                const response = await fetch('/api/admin/reload-model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                });
+                const payload = await response.json();
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Model reload failed.');
+                }
+                statusEl.textContent = payload.message || 'Model reloaded.';
+            } catch (error) {
+                statusEl.textContent = error.message;
+            }
+        }
+
+        async function expandDataset(event) {
+            event.preventDefault();
+            const targetSize = Number(targetSizeInput.value);
+            if (!Number.isInteger(targetSize) || targetSize < 1) {
+                statusEl.textContent = 'Please enter a valid positive integer for target size.';
+                return;
+            }
+
+            statusEl.textContent = 'Expanding dataset... this may take a while.';
+            try {
+                const response = await fetch('/api/admin/expand-dataset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ target_size: targetSize }),
+                });
+                const payload = await response.json();
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Dataset expansion failed.');
+                }
+
+                if (payload.stats) {
+                    renderStats(payload.stats);
+                } else {
+                    await refreshStats();
+                }
+
+                statusEl.textContent = payload.message || 'Dataset expansion completed.';
+            } catch (error) {
+                statusEl.textContent = error.message;
+            }
+        }
+
+        refreshBtn.addEventListener('click', refreshStats);
+        reloadBtn.addEventListener('click', reloadModel);
+        expandForm.addEventListener('submit', expandDataset);
+
+        refreshStats();
+    </script>
+</body>
+</html>

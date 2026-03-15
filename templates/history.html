@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>History | Next Track Recommender</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <div class="layout">
+        <header class="topbar">
+            <h1>Next Track Recommender</h1>
+            <div class="topbar-user">
+                <span class="topbar-name">Hi, {{ username }}</span>
+                <form method="post" action="{{ url_for('logout') }}">
+                    <button type="submit" class="queue-btn">Logout</button>
+                </form>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <nav>
+                <a href="{{ url_for('index') }}" class="nav-item {% if active_page == 'home' %}active{% endif %}">Home</a>
+                <a href="{{ url_for('library') }}" class="nav-item {% if active_page == 'library' %}active{% endif %}">Library</a>
+                <a href="{{ url_for('history') }}" class="nav-item {% if active_page == 'history' %}active{% endif %}">History</a>
+                <a href="{{ url_for('admin_tools') }}" class="nav-item {% if active_page == 'admin' %}active{% endif %}">Admin</a>
+                <a href="{{ url_for('index') }}#results-grid" class="nav-item">Recommendations</a>
+            </nav>
+
+            <section class="side-card">
+                <p class="side-kicker">History</p>
+                <p class="queue-empty">This tab shows all saved recommendation sessions from your browser storage.</p>
+            </section>
+        </aside>
+
+        <main class="main-panel single-column">
+            <section class="hero-card">
+                <div class="hero-cover cover-frame cover-fallback">HS</div>
+                <div class="hero-copy">
+                    <p class="hero-kicker">Seed Activity</p>
+                    <h2 class="hero-title">Your History</h2>
+                    <p class="hero-artist">Track recently used seed songs in one place.</p>
+                    <div class="hero-chips">
+                        <span id="seed-count" class="hero-chip">0 Seeds</span>
+                        <button id="clear-history" type="button" class="queue-btn">Clear History</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="results-card">
+                <div class="results-head">
+                    <h2>Recent Seeds</h2>
+                    <span class="badge">Recent</span>
+                </div>
+                <div id="seed-history-list" class="recent-queues"></div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const RECENT_SEEDS_KEY = 'music-recommender-recent-seeds-v1';
+
+        function formatModeLabel(mode) {
+            const labels = {
+                hybrid: 'Hybrid',
+                artist: 'Artist',
+                lyrics: 'Lyrics',
+                vibe: 'Vibe',
+                collaborative: 'Listening Pattern',
+            };
+            return labels[mode] || mode || 'Hybrid';
+        }
+
+        function formatQueueTime(timestamp) {
+            const dt = new Date(timestamp || Date.now());
+            return dt.toLocaleString([], {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        }
+
+        function loadRecentSeeds() {
+            try {
+                const raw = localStorage.getItem(RECENT_SEEDS_KEY);
+                if (!raw) {
+                    return [];
+                }
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        }
+
+        function renderSeedHistory() {
+            const listEl = document.getElementById('seed-history-list');
+            const countEl = document.getElementById('seed-count');
+            const seeds = loadRecentSeeds();
+
+            listEl.innerHTML = '';
+            countEl.textContent = `${seeds.length} Seeds`;
+
+            if (!seeds.length) {
+                const empty = document.createElement('p');
+                empty.className = 'queue-empty';
+                empty.textContent = 'No recent seeds yet. Generate recommendations on Home to fill this.';
+                listEl.appendChild(empty);
+                return;
+            }
+
+            seeds.forEach((seed) => {
+                const item = document.createElement('article');
+                item.className = 'queue-item';
+
+                const title = document.createElement('p');
+                title.className = 'queue-title';
+                title.textContent = `${seed.seed_title} - ${seed.seed_artist}`;
+
+                const meta = document.createElement('p');
+                meta.className = 'queue-meta';
+                meta.textContent = `Seeded on ${formatQueueTime(seed.created_at)}`;
+
+                const open = document.createElement('a');
+                open.className = 'queue-replay';
+                open.href = "{{ url_for('index') }}";
+                open.textContent = 'Open Home';
+
+                item.appendChild(title);
+                item.appendChild(meta);
+                item.appendChild(open);
+                listEl.appendChild(item);
+            });
+        }
+
+        document.getElementById('clear-history').addEventListener('click', () => {
+            localStorage.removeItem(RECENT_SEEDS_KEY);
+            renderSeedHistory();
+        });
+
+        renderSeedHistory();
+    </script>
+</body>
+</html>

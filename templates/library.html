@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Library | Next Track Recommender</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <div class="layout">
+        <header class="topbar">
+            <h1>Next Track Recommender</h1>
+            <div class="topbar-user">
+                <span class="topbar-name">Hi, {{ username }}</span>
+                <form method="post" action="{{ url_for('logout') }}">
+                    <button type="submit" class="queue-btn">Logout</button>
+                </form>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <nav>
+                <a href="{{ url_for('index') }}" class="nav-item {% if active_page == 'home' %}active{% endif %}">Home</a>
+                <a href="{{ url_for('library') }}" class="nav-item {% if active_page == 'library' %}active{% endif %}">Library</a>
+                <a href="{{ url_for('history') }}" class="nav-item {% if active_page == 'history' %}active{% endif %}">History</a>
+                <a href="{{ url_for('admin_tools') }}" class="nav-item {% if active_page == 'admin' %}active{% endif %}">Admin</a>
+                <a href="{{ url_for('index') }}#results-grid" class="nav-item">Recommendations</a>
+            </nav>
+
+            <section class="side-card">
+                <p class="side-kicker">Navigation</p>
+                <p class="queue-empty">Use this screen to review catalog context and recommendation mode strategy before running sessions.</p>
+            </section>
+        </aside>
+
+        <main class="main-panel single-column">
+            <section class="hero-card">
+                <div class="hero-cover cover-frame cover-fallback">LB</div>
+                <div class="hero-copy">
+                    <p class="hero-kicker">Library Overview</p>
+                    <h2 class="hero-title">Explore Your Recommendation Toolkit</h2>
+                    <p class="hero-artist">This screen helps you choose the right mode and discover faster.</p>
+                    <div class="hero-chips">
+                        <span class="hero-chip">Multi-Screen Ready</span>
+                        <span class="hero-chip ghost">Professional Product Flow</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="insights-row">
+                <article class="insights-card">
+                    <div class="insights-head">
+                        <h2>Catalog Snapshot</h2>
+                        <span class="badge" id="library-song-count">...</span>
+                    </div>
+                    <p class="subtext">Live song catalog count from your current dataset.</p>
+                    <p class="queue-empty" id="library-status">Loading catalog information...</p>
+                </article>
+
+                <article class="insights-card">
+                    <div class="insights-head">
+                        <h2>Mode Strategy Guide</h2>
+                        <span class="badge">Quick Pick</span>
+                    </div>
+                    <div class="mode-guide-grid">
+                        <p class="insight-item"><span>Artist</span><strong>Same artist / collaborators</strong></p>
+                        <p class="insight-item"><span>Lyrics</span><strong>Text and lyrical overlap</strong></p>
+                        <p class="insight-item"><span>Vibe</span><strong>Tempo and mood matching</strong></p>
+                        <p class="insight-item"><span>Hybrid</span><strong>Balanced all-signal blend</strong></p>
+                    </div>
+                </article>
+            </section>
+
+            <section class="results-card">
+                <div class="results-head">
+                    <h2>Quick Actions</h2>
+                    <span class="badge">Workflow</span>
+                </div>
+                <div class="quick-picks">
+                    <a href="{{ url_for('index') }}" class="quick-pick quick-link">Start New Recommendation</a>
+                    <a href="{{ url_for('index') }}#recent-queues" class="quick-pick quick-link">Go To Saved Queues</a>
+                    <a href="{{ url_for('index') }}#results-grid" class="quick-pick quick-link">Jump To Results</a>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        async function initLibraryScreen() {
+            const countEl = document.getElementById('library-song-count');
+            const statusEl = document.getElementById('library-status');
+            try {
+                const response = await fetch('/api/songs');
+                const payload = await response.json();
+                if (!response.ok) {
+                    throw new Error(payload.error || 'Unable to load catalog data.');
+                }
+                const songs = Array.isArray(payload.songs) ? payload.songs : [];
+                countEl.textContent = String(songs.length);
+                statusEl.textContent = `Catalog loaded with ${songs.length} songs.`;
+            } catch (error) {
+                countEl.textContent = '-';
+                statusEl.textContent = error.message;
+            }
+        }
+
+        initLibraryScreen();
+    </script>
+</body>
+</html>

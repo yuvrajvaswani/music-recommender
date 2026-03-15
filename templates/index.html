@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Next Track Recommender</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+    <div class="layout">
+        <header class="topbar">
+            <h1>Next Track Recommender</h1>
+            <div class="topbar-user">
+                <span class="topbar-name">Hi, {{ username }}</span>
+                <form method="post" action="{{ url_for('logout') }}">
+                    <button type="submit" class="queue-btn">Logout</button>
+                </form>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <nav>
+                <a href="{{ url_for('index') }}" class="nav-item {% if active_page == 'home' %}active{% endif %}">Home</a>
+                <a href="{{ url_for('library') }}" class="nav-item {% if active_page == 'library' %}active{% endif %}">Library</a>
+                <a href="{{ url_for('history') }}" class="nav-item {% if active_page == 'history' %}active{% endif %}">History</a>
+                <a href="{{ url_for('admin_tools') }}" class="nav-item {% if active_page == 'admin' %}active{% endif %}">Admin</a>
+                <a href="{{ url_for('index') }}#results-grid" class="nav-item">Recommendations</a>
+            </nav>
+
+            <section class="side-card profile-card">
+                <p class="side-kicker">Profile</p>
+                <div class="profile-row">
+                    <div class="profile-avatar">{{ username[:1]|upper }}</div>
+                    <div>
+                        <p class="profile-name">{{ username }}</p>
+                        <p class="profile-sub">Discovery Session</p>
+                    </div>
+                </div>
+                <div class="profile-stats">
+                    <p><span>Saved Queues</span><strong id="profile-saved-queues">0</strong></p>
+                    <p><span>Recent Seeds</span><strong id="profile-recent-seeds">0</strong></p>
+                </div>
+            </section>
+
+            <section class="side-card">
+                <p class="side-kicker">Quick Actions</p>
+                <div class="side-actions">
+                    <button id="action-surprise" class="side-action" type="button">Surprise Me</button>
+                    <button id="action-last-seed" class="side-action" type="button">Use Last Seed</button>
+                </div>
+            </section>
+
+            <section class="side-card">
+                <p class="side-kicker">Similarity Shortcuts</p>
+                <div class="mode-shortcuts">
+                    <button type="button" class="mode-chip" data-mode="hybrid">Hybrid</button>
+                    <button type="button" class="mode-chip" data-mode="artist">Artist</button>
+                    <button type="button" class="mode-chip" data-mode="lyrics">Lyrics</button>
+                    <button type="button" class="mode-chip" data-mode="vibe">Vibe</button>
+                </div>
+            </section>
+
+            <section class="side-card">
+                <p class="side-kicker">Recent Seeds</p>
+                <div id="sidebar-recent-seeds" class="side-list"></div>
+            </section>
+        </aside>
+
+        <main class="main-panel">
+            <div class="main-content">
+            <section class="hero-card" id="hero-card">
+                <div class="hero-cover cover-frame cover-fallback" id="hero-cover">NT</div>
+                <div class="hero-copy">
+                    <p class="hero-kicker">Now Recommending</p>
+                    <h2 id="hero-title" class="hero-title">Next Track Session</h2>
+                    <p id="hero-artist" class="hero-artist">Pick a seed song to start your queue.</p>
+                    <div class="hero-chips">
+                        <span id="hero-mode" class="hero-chip">Hybrid</span>
+                        <span class="hero-chip ghost" id="hero-tip">Artist + Lyrics + Vibe</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="controls-card">
+                <h2>Pick a Song</h2>
+                <p class="subtext">Choose a track and generate the next 10 recommended songs.</p>
+
+                <form id="recommend-form" class="recommend-form">
+                    <label for="song-input">Song Search</label>
+                    <input
+                        id="song-input"
+                        name="song_query"
+                        type="text"
+                        list="song-options"
+                        placeholder="Type song title or pick from suggestions"
+                        autocomplete="off"
+                        required
+                    />
+                    <datalist id="song-options"></datalist>
+                    <input id="song-id" name="song_id" type="hidden" />
+
+                    <label for="similarity-mode">Similarity Type</label>
+                    <select id="similarity-mode" name="similarity_mode">
+                        <option value="hybrid" selected>Hybrid (Artist + Lyrics + Vibe + Listening Pattern)</option>
+                        <option value="artist">Artist</option>
+                        <option value="lyrics">Lyrics / Text</option>
+                        <option value="vibe">Vibe (Tempo, Energy, Danceability, Mood)</option>
+                        <option value="collaborative">Listening Pattern</option>
+                    </select>
+
+                    <button id="recommend-btn" type="submit">Recommend</button>
+                </form>
+
+                <p id="status" class="status"></p>
+            </section>
+
+            <section class="insights-row">
+                <article class="insights-card">
+                    <div class="insights-head">
+                        <h2>Session Insights</h2>
+                        <span class="badge" id="insight-mode">Hybrid</span>
+                    </div>
+                    <div class="insights-grid">
+                        <p class="insight-item"><span>Top Genre</span><strong id="insight-top-genre">-</strong></p>
+                        <p class="insight-item"><span>Vibe Signal</span><strong id="insight-vibe">-</strong></p>
+                        <p class="insight-item"><span>Avg Tempo</span><strong id="insight-avg-tempo">-</strong></p>
+                        <p class="insight-item"><span>Avg Similarity</span><strong id="insight-avg-similarity">-</strong></p>
+                    </div>
+                </article>
+
+                <article class="insights-card">
+                    <div class="insights-head">
+                        <h2>Recent Queues</h2>
+                        <button id="save-queue-btn" class="queue-btn" type="button">Save Current</button>
+                    </div>
+                    <p class="subtext">Save recommendation runs and replay them quickly.</p>
+                    <div id="recent-queues" class="recent-queues"></div>
+                </article>
+            </section>
+
+            <section class="results-card">
+                <div class="results-head">
+                    <h2>Recommended songs for {{ username }} are</h2>
+                    <span id="result-count" class="badge">0</span>
+                </div>
+                <div id="empty-state" class="empty-state">
+                    <p class="empty-title">Your queue is waiting</p>
+                    <p class="empty-subtext">Choose a song, pick a similarity type, and build a fresh 10-track run.</p>
+                    <div id="quick-picks" class="quick-picks"></div>
+                </div>
+                <div id="results-grid" class="results-grid"></div>
+            </section>
+            </div>
+
+            <aside class="context-rail">
+                <article class="context-card">
+                    <p class="side-kicker">Now Playing Context</p>
+                    <p id="context-seed" class="context-title">No seed selected</p>
+                    <p id="context-mode" class="queue-meta">Mode: Hybrid</p>
+                    <p id="context-time" class="queue-meta">Updated: -</p>
+                </article>
+
+                <article class="context-card">
+                    <p class="side-kicker">Recommendation Health</p>
+                    <div class="context-metrics">
+                        <p><span>Result Count</span><strong id="context-count">0</strong></p>
+                        <p><span>Top Genre</span><strong id="context-top-genre">-</strong></p>
+                        <p><span>Avg Similarity</span><strong id="context-avg-sim">-</strong></p>
+                    </div>
+                    <div id="context-genre-bars" class="genre-bars"></div>
+                </article>
+
+                <article class="context-card">
+                    <p class="side-kicker">Pro Tips</p>
+                    <ul class="tips-list">
+                        <li>Use <strong>Artist</strong> mode for same-artist streaks.</li>
+                        <li>Use <strong>Vibe</strong> mode for tempo and energy matching.</li>
+                        <li>Save strong queues to replay later.</li>
+                    </ul>
+                </article>
+            </aside>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}?v=cover-fix-2"></script>
+</body>
+</html>
